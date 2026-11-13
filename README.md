@@ -12,7 +12,7 @@ The DTS is based on `sdm632-motorola-ocean.dts` (Moto G7 Power).
 | Feature | Status | Notes |
 |---|---|---|
 | Boot | ✅ | lk2nd (generic msm8953 build) → extlinux |
-| Display | ✅ | DJN 5.7" 720×1512 video panel, own driver |
+| Display | ✅ | DJN 569 panel (`motorola,channel-569-djn`), own driver. The DJN 568, DSBJ 569 and DSBJ 570 variants have no driver yet |
 | Backlight | ✅ | DCS |
 | Touch | ✅ | NT36525 via `novatek-nvt-ts` |
 | Wi-Fi | ✅ | WCN3620, 2.4 GHz only |
@@ -29,7 +29,7 @@ The DTS is based on `sdm632-motorola-ocean.dts` (Moto G7 Power).
 
 ```
 dts/sdm632-motorola-channel.dts            device tree (goes in arch/arm64/boot/dts/qcom/)
-drivers/panel-motorola-channel/            DSI panel driver (out of tree)
+drivers/panel-motorola-channel-569-djn/    DSI panel driver (out of tree)
 drivers/drv2624/                           TI DRV2624 haptics driver (out of tree)
 sxmo/sxmo_deviceprofile_motorola,channel.sh  sxmo device profile
 sxmo/adc-battery.sh                        battery % for the sxmo status bar
@@ -54,22 +54,25 @@ cpp -nostdinc -undef -D__DTS__ -x assembler-with-cpp \
     dtc -@ -I dts -O dtb -o sdm632-motorola-channel.dtb -
 
 # Modules
-make -C $KERNEL ARCH=arm64 LLVM=1 KBUILD_MODPOST_WARN=1 M=$PWD/drivers/panel-motorola-channel modules
+make -C $KERNEL ARCH=arm64 LLVM=1 KBUILD_MODPOST_WARN=1 M=$PWD/drivers/panel-motorola-channel-569-djn modules
 make -C $KERNEL ARCH=arm64 LLVM=1 KBUILD_MODPOST_WARN=1 M=$PWD/drivers/drv2624 modules
 ```
 
 ## Installing
 
-Rough outline. A pmaports package to automate this is planned.
+Rough outline until the kernel and pmaports changes are merged (then the stock `qcom-msm8953` image will just work).
+
+The DTS says `motorola,channel-panel`; lk2nd detects the real panel and puts its compatible in front.
 
 1. Unlock the bootloader (Motorola's official unlock).
-2. Flash [lk2nd](https://github.com/msm8916-mainline/lk2nd) (generic msm8953 build) to **both** `boot_a` and `boot_b`
+2. Flash [lk2nd](https://github.com/msm8916-mainline/lk2nd) (msm8953 build from February 2026 or newer, which knows `channel` and its panels) to **both** `boot_a` and `boot_b`
    from the Motorola bootloader (MBM): `fastboot flash boot_a lk2nd.img`, same for `boot_b`, then `fastboot set_active a`.
 3. Take a postmarketOS `qcom-msm8953` image (sxmo), add `sdm632-motorola-channel.dtb` to the
    boot partition and point `extlinux.conf` at it (`fdt /sdm632-motorola-channel.dtb`).
 4. From lk2nd's fastboot: `fastboot flash userdata pmos.img`.
 5. Install the modules in `/lib/modules/$(uname -r)/extra/`, run `depmod`,
-   copy the sxmo files (see their headers) and the Wi-Fi NV firmware.
+   copy the sxmo files (see their headers), and put `a506_zap.{mdt,b02}` (same as the Moto G7 Power's)
+   and the Wi-Fi NV file in `/lib/firmware/qcom/msm8953/motorola/channel/`.
 
 Make sure something marks the slot as successful on every boot (pmOS's `qbootctl.service` does),
 or MBM burns the retry counter and stops booting the slot.
@@ -99,11 +102,11 @@ fine but **no slot is marked active**. Recovery without blankflash:
 
 ## Known issues / TODO
 
-- Panel driver doesn't manage its supplies yet; L17 is forced always-on in the DTS.
+- Panel `vsp`/`vsn` come from the PMI632 LCDB, which has no mainline driver; they stay on from the bootloader.
 - DRV2624 voltages are hardcoded for this phone; no auto-calibration.
 - Touch uses the `novatek,nt36672a-ts` compatible though the chip is an NT36525.
 - `pclk0_clk_src: rcg didn't update` warning at boot (harmless so far).
-- No PMI632 fuel gauge / charger driver in mainline.
+- No PMI632 fuel gauge / charger driver in mainline yet (WIP QGauge/SMB5 drivers exist in msm8953-mainline PR #239).
 - Upstreaming: DTS → linux-arm-msm, panel → dri-devel, DRV2624 → linux-input, lk2nd and pmaports.
 
 ## Credits

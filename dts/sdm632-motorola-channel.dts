@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
+ * Copyright (c) 2026, Nicholas Velten
+ *
  * Based on sdm632-motorola-ocean.dts
  * Copyright (c) 2022, Gabriela David
  */
@@ -93,7 +95,7 @@
 };
 
 &gpu_zap_shader {
-	firmware-name = "qcom/msm8953/motorola/ocean/a506_zap.mdt";
+	firmware-name = "qcom/msm8953/motorola/channel/a506_zap.mdt";
 };
 
 &i2c_1 {
@@ -140,6 +142,9 @@
 		reg = <0>;
 
 		reset-gpios = <&tlmm 61 GPIO_ACTIVE_LOW>;
+
+		vddio-supply = <&pm8953_l6>;
+		/* vsp/vsn come from the PMI632 LCDB, left enabled by the bootloader */
 
 		pinctrl-0 = <&panel_default &bklt_en_default &mdss_te_default>;
 		pinctrl-names = "default";
@@ -300,12 +305,9 @@
 			regulator-max-microvolt = <1800000>;
 		};
 
-		/* Panel vdd; the generated panel driver does not manage supplies */
 		pm8953_l17: l17 {
 			regulator-min-microvolt = <2850000>;
 			regulator-max-microvolt = <2850000>;
-			regulator-always-on;
-			regulator-boot-on;
 		};
 
 		pm8953_l18: l18 {
