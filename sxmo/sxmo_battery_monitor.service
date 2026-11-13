@@ -1,0 +1,7 @@
+[Unit]
+Description=Sxmo: battery % from PMI632 ADC (no fuel gauge driver)
+
+[Service]
+Type=simple
+Restart=always
+ExecStart=/home/user/.local/bin/adc-battery.sh
