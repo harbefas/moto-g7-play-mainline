@@ -41,8 +41,21 @@ stock `vendor` partition and goes in `/lib/firmware/qcom/msm8953/motorola/channe
 
 ## Building
 
-In a msm8953-mainline kernel tree prepared with the running kernel's config
-(`make olddefconfig modules_prepare`):
+The modules must match the running kernel exactly, or `modprobe` fails with `Exec format error`.
+Use the msm8953-mainline tag of the running kernel (`v7.1.3-r0` for `7.1.3-msm8953`) and its config:
+
+```sh
+cd $KERNEL
+git checkout v7.1.3-r0
+ssh phone zcat /proc/config.gz > .config    # or the config from linux-postmarketos-qcom-msm8953
+make ARCH=arm64 LLVM=1 LOCALVERSION= olddefconfig modules_prepare
+```
+
+The pmOS kernel is built with clang, hence `LLVM=1`. `LOCALVERSION=` keeps a git tree from
+appending `+` to the version. Check with `modinfo -F vermagic *.ko`: it must start with the
+phone's `uname -r`.
+
+Then:
 
 ```sh
 # DTB
@@ -54,8 +67,8 @@ cpp -nostdinc -undef -D__DTS__ -x assembler-with-cpp \
     dtc -@ -I dts -O dtb -o sdm632-motorola-channel.dtb -
 
 # Modules
-make -C $KERNEL ARCH=arm64 LLVM=1 KBUILD_MODPOST_WARN=1 M=$PWD/drivers/panel-motorola-channel-569-djn modules
-make -C $KERNEL ARCH=arm64 LLVM=1 KBUILD_MODPOST_WARN=1 M=$PWD/drivers/drv2624 modules
+make -C $KERNEL ARCH=arm64 LLVM=1 LOCALVERSION= KBUILD_MODPOST_WARN=1 M=$PWD/drivers/panel-motorola-channel-569-djn modules
+make -C $KERNEL ARCH=arm64 LLVM=1 LOCALVERSION= KBUILD_MODPOST_WARN=1 M=$PWD/drivers/drv2624 modules
 ```
 
 ## Installing
@@ -73,6 +86,13 @@ The DTS says `motorola,channel-panel`; lk2nd detects the real panel and puts its
 5. Install the modules in `/lib/modules/$(uname -r)/extra/`, run `depmod`,
    copy the sxmo files (see their headers), and put `a506_zap.{mdt,b02}` (same as the Moto G7 Power's)
    and the Wi-Fi NV file in `/lib/firmware/qcom/msm8953/motorola/channel/`.
+6. Put the panel module in the initramfs, or the display never comes up
+   (`ERROR: /dev/fb0 did not appear after waiting 10 seconds!`, no sxmo):
+   ```sh
+   echo panel-motorola-channel-569-djn | sudo tee /etc/mkinitfs/modules/channel.modules
+   sudo mkinitfs
+   ```
+   After a kernel upgrade, rebuild the modules for the new kernel.
 
 Make sure something marks the slot as successful on every boot (pmOS's `qbootctl.service` does),
 or MBM burns the retry counter and stops booting the slot.
